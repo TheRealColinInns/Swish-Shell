@@ -8,12 +8,14 @@
 #ifndef _HISTORY_H_
 #define _HISTORY_H_
 
+//struct to hold history data
 struct history
 {
 	unsigned int cmd_num;
 	char *command;
 };
 
+//struct to be return both a result and the index
 struct index_navigator
 {
 	unsigned int index;

@@ -10,11 +10,13 @@
 #ifndef _SHELL_H_
 #define _SHELL_H_
 
+//struct containing info for a background process
 struct process {
 	char *command;
 	pid_t background_pid;
 };
 
+//struct containing all info needed to execute a command
 struct command_line {
     char **tokens;
     bool stdout_pipe;

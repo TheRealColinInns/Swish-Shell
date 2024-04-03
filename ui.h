@@ -1,6 +1,7 @@
 /**
  * @file
  *
+ * USER INTERFACE
  * Text-based UI functionality. These functions are primarily concerned with
  * interacting with the readline library.
  */

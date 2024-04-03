@@ -1,6 +1,7 @@
 /**
  * @file
  *
+ * Logger
  * Helps facilitate debugging by providing basic logging functionality. Unlike
  * printf-style debugging, the log messages can be enabled/disabled by changing 
  * the value of LOGGER.
