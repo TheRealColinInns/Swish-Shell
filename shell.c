@@ -21,18 +21,21 @@
 #include "ui.h"
 #include "shell.h"
 
-static bool piping = false;
+static bool piping = false; //boolean true when piping is called for
 
-static size_t job_size = 0;
+static size_t job_size = 0; //number of jobs currently running in the background
 
-static struct process jobs[10];
+static struct process jobs[10]; //a list of background jobs
 
-static bool running = true;
+static bool running = true; //boolean true if running background jobs
 
+//don't allow simple ^C to exit
 void sigint_handler(int signo)
 {
     LOGP("Attempted to Exit\n");
 }
+
+//remove background job that has completed
 void sigchld_handler(int signo)
 {
     if (running) {
@@ -40,7 +43,6 @@ void sigchld_handler(int signo)
         pid_t pid = waitpid(-1,&status_local,WNOHANG);
         
         if(pid>0){
-            //LOG("PID: %d\n", pid);
             for(int i = 0; i<job_size; i++){
                 if(jobs[i].background_pid==pid) {
                     LOG("Match Found at %d Replacing... %s\n", jobs[i].background_pid, jobs[i].command);
@@ -56,6 +58,8 @@ void sigchld_handler(int signo)
         }
     }
 }
+
+//empty the job list
 void free_jobs(void)
 {
     running = false;
@@ -64,6 +68,8 @@ void free_jobs(void)
         free(jobs[i].command);
     }
 }
+
+//helps parse tokens
 char *next_token(char **str_ptr, const char *delim)
 {
     if (*str_ptr == NULL) {
@@ -92,6 +98,7 @@ char *next_token(char **str_ptr, const char *delim)
     return current_ptr;
 }
 
+//return the sive of the command
 size_t get_size(size_t size, char **args)
 {
     size_t char_size = strlen(args[0]);
@@ -119,14 +126,9 @@ int main(void)
             break;
         }
 
-        //LOG("Original command: %s\n", command);
-
-        //char *args[100]; //BAD
-        //LOGP("Attempting Calloc\n");
         char **args = (char **) calloc(11, sizeof(char *));
-        //LOGP("Calloc Success\n");
-        int arg_max=10;
 
+        int arg_max=10;
         int tokens = 0;
         int arg_size = 0;
         char *next_tok = command;
@@ -134,7 +136,6 @@ int main(void)
         while((curr_tok = next_token(&next_tok, " \t\r\n")) != NULL) {
             arg_size++;
             if(!(arg_size<arg_max)) {
-                //LOGP("Attempting Realloc\n");
                 arg_max*=2;
                 char **temp_args = realloc(args, sizeof(char *)*arg_max);
                 if (temp_args==NULL) {
@@ -143,7 +144,6 @@ int main(void)
                 } else {
                     args = temp_args;
                 }
-                //LOGP("Realloc Success\n");
             }
             if(curr_tok[0]=='|'||curr_tok[0]=='>'||curr_tok[0]=='<'){
                 piping=true;
@@ -158,7 +158,7 @@ int main(void)
 
         if(piping){
             if(construct_pipeline(args, arg_size)==0) {
-                //LOGP("Finished Pipeline\n");
+                //the pipeline has been constructed
             } else {
                 LOGP("Pipeline Failure\n");
             }
@@ -208,7 +208,6 @@ int main(void)
             //add to history
             hist_add(hist_buf);
 
-            
             if(execute(args)==-1){
                 goto cleanup;
             }
@@ -218,7 +217,6 @@ int main(void)
 
 cleanup:
         /* We are done with command; free it */
-        //LOGP("Free Command\n");
         free(command);
         free(args);
         arg_size = 0;
@@ -228,6 +226,7 @@ cleanup:
     return 0;
 }
 
+//separate the arguments and test for piping
 int seperate_args(char **args, char *original, size_t size){
     int tokens = 0;
     int counter = 0;
@@ -244,6 +243,7 @@ int seperate_args(char **args, char *original, size_t size){
     return counter;
 }
 
+//execute a constructed pipeline
 int execute_pipeline(struct command_line *cmds)
 {
     int counter = 0;
@@ -291,6 +291,7 @@ int execute_pipeline(struct command_line *cmds)
     
 }
 
+//constructs a pipeline to later be executed
 int construct_pipeline(char **args, size_t size)
 {
     
@@ -299,7 +300,6 @@ int construct_pipeline(char **args, size_t size)
         int cmds_counter = 0;
         cmds[0].tokens = &args[0];
         for(int i = 0; i<size; i++){
-            //LOG("cmds: %d\n", cmds_counter);
             if(args[i][0]=='|') {
                 args[i] = NULL;
                 cmds[cmds_counter].stdout_pipe = true;
@@ -339,6 +339,7 @@ int construct_pipeline(char **args, size_t size)
     return -1;
 }
 
+//normal execution without piping or background execution
 int execute(char **args)
 {
     pid_t child = fork();
@@ -359,9 +360,10 @@ int execute(char **args)
     return 0;
 }
 
+
+//execute the command in the background
 int background_execute(char **args, size_t arg_size)
 {
-    //LOGP("Background+\n");
     pid_t child = fork();
     if(child == -1) {
         perror("fork");
@@ -394,17 +396,14 @@ int background_execute(char **args, size_t arg_size)
         }
     
     }
-    //LOGP("Background-\n");
-
     return 0;
 }
 
+//handle built-in functions (such as exit and cd) and remove comments
 int builtins(char **args, size_t arg_size, bool bang) 
 {
     bool comment = false;
 
-
-    
     for(int i = 0; i<arg_size; i++){
         for(int j = 0; j < strlen(args[i]); j++){
             if(args[i][j]=='#'){
@@ -414,7 +413,6 @@ int builtins(char **args, size_t arg_size, bool bang)
                 comment = true;
             }
             if(comment){
-                //LOG("Replacing %s with null byte\n", args[i]);
                 args[i][j] = '\0';
             }
         }
@@ -444,7 +442,6 @@ int builtins(char **args, size_t arg_size, bool bang)
         fflush(stdout);
         return 1;
     } else if(cmd[0]=='!'){
-        //LOG("CMD: %s\n", cmd);
         if(strlen(cmd)>2&&isdigit(cmd[1])){
             //get rid of that pesky !
             for(int i = 0; i<strlen(cmd); i++){
@@ -453,7 +450,7 @@ int builtins(char **args, size_t arg_size, bool bang)
             //convert the rest
             long num = strtol(cmd, NULL, 10);
             const char *result = hist_search_cnum(num);
-            //LOG("Result: %s\n", result);
+
             //execute the command
             if(result!=NULL){
                 hist_add((char *) result);
@@ -480,7 +477,7 @@ int builtins(char **args, size_t arg_size, bool bang)
                 cmd[i] = cmd[i+1];
             }
             const char *result = hist_search_prefix(cmd);
-            //LOG("Result: %s\n", result);
+
             //execute the command
             if(result!=NULL){
                 hist_add((char *) result);
@@ -506,7 +503,7 @@ int builtins(char **args, size_t arg_size, bool bang)
             return 1;
         } else if(strcmp(cmd, "!!")==0){
             const char *result = hist_search_cnum(hist_last_cnum());
-            //LOG("Result: %s\n", result);
+
             //execute the command
             if(result!=NULL){
                 hist_add((char *) result);
@@ -532,7 +529,6 @@ int builtins(char **args, size_t arg_size, bool bang)
             return 0;
         }
     } else if(strcmp(args[arg_size-1], "&")==0){
-        //LOG("Remove &: %s\n", args[arg_size-1]);
         args[arg_size-1] = NULL;
         
         background_execute(args, arg_size-1);
