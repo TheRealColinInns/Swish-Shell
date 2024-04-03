@@ -1,4 +1,4 @@
-# Output binary name
+# Output binary name (the name of the executable)
 bin=swish
 
 # Set the following to '0' to disable log messages:
